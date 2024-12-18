@@ -1,5 +1,10 @@
 
 /*
+
+https://github.com/PaulStoffregen/Tlc5940
+
+
+
     Basic Pin setup:
     ------------                                  ---u----
     ARDUINO   13|-> SCLK (pin 25)           OUT1 |1     28| OUT channel 0
@@ -17,6 +22,7 @@
                1|                             .  |13    16|-> XERR
                0|                           OUT14|14    15| OUT channel 15
     ------------                                  --------
+This applies to Arduino Uno and Nano. Maybe other AVR boards, but those are the ones I have tested
 
     -  Put the longer leg (anode) of the LEDs in the +5V and the shorter leg
          (cathode) in OUT(0-15).
@@ -46,7 +52,19 @@
 
     This sketch does the Knight Rider strobe across a line of LEDs.
 
-    Alex Leone <acleone ~AT~ gmail.com>, 2009-02-03 */
+    Alex Leone <acleone ~AT~ gmail.com>, 2009-02-03 
+    
+      this is how each led "column" is enumerated
+        0    1    2    3
+
+        4    5    6    7
+
+        8    9   10   11
+
+       12   13   14   15  
+    
+    
+    */
 #include "Tlc5940.h"
 #include "FastShiftOut.h"
 /* #include "SparkFun_Tlc5940.h"*/
@@ -59,22 +77,35 @@
 #define MAX_LEDS            NUM_TLCS * 16
 #define TIME_TRANSITION     70
 
-#define LEVEL_0 0b01110000
-#define LEVEL_1 0b10110000
-#define LEVEL_2 0b11010000
-#define LEVEL_3 0b11100000
-#define LEVEL_ALL 0b00000000
-#define LEVEL_NONE 0b11110000
-#define LEVEL_TOPBOTTOM LEVEL_0 & LEVEL_3
-#define LEVEL_MIDDLES LEVEL_1 & LEVEL_2
+/* the is the code to drive a 4X4X4 led cube
+
+  The levels are the horizontal planes of leds, in contrario to the Vertical ones.
+  All 4 Levels (in a 4x4x4 led cude) are contoled by 4 MOSFET IRF9540, P channel 
+  Being P Channel, it means that they will conduct when the gate is low.
+  each mosfet is connected to one pin of a 74HC595.  
+  Only the lower 4 bits of that 8 bit shift register will be used.*/
+
+/* Below are the bit setup of each level that will be set in the shift regiuster
+   to tunr on or off each level of leds
+   0 means it's lit, 1 it's off.*/
+#define LEVEL_0 0b01110000     // only bottom level is lit, 3 others are off
+#define LEVEL_1 0b10110000     // only 2nd level is lit, 3 others are off
+#define LEVEL_2 0b11010000     // only 3th level is lit, 3 others are off
+#define LEVEL_3 0b11100000     // only 4tht level is lit, 3 others are off  
+#define LEVEL_ALL 0b00000000   // all levels are are lit
+#define LEVEL_NONE 0b11110000  // all levels are off
+#define LEVEL_TOPBOTTOM LEVEL_0 & LEVEL_3  // binary AND to have bottom and top lit, the others are off
+#define LEVEL_MIDDLES LEVEL_1 & LEVEL_2    // binary AND to have middle levels lit, the others are off 
 
 #define nb_leds 7
 const byte dataArray[nb_leds] =  { LEVEL_0, LEVEL_1, LEVEL_2, LEVEL_3, LEVEL_ALL, LEVEL_TOPBOTTOM, LEVEL_MIDDLES };
 
- 
+/*grey scales are going to be sent to the TLC5940 for graduating the brightness of the leds, no matter which*/ 
 int greyscales[MAX_GREYSCALES] = {0, 10, 25, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000, 2000, 3000, 4095 };
 byte valeur_data = LEVEL_ALL;// all mosfets high
 bool up_going = true;
+
+/*==========================================================================*/
 
 FastShiftOut FSO(_74HC595_DATA_PIN, _74HC595_CLOCK_PIN, MSBFIRST);
 
@@ -87,7 +118,7 @@ void setup()
   Tlc.update();
 
   
-  pinMode( _74HC595_LATCH_PIN, OUTPUT);
+  pinMode( _74HC595_LATCH_PIN, OUTPUT);  // cant remember why the 2 oth4es are not set...
 //  pinMode( _74HC595_CLOCK_PIN, OUTPUT);
   
 //  pinMode( _74HC595_DATA_PIN,  OUTPUT);
@@ -108,12 +139,9 @@ void SetLEDsLevel( byte lvl1, byte lvl2, byte lvl3, byte lvl4 )
 
 void SetLEDsByteLevel( byte lvl )
 {
-  PORTC &= ~(1 << PORTC4);
-  //digitalWrite( _74HC595_LATCH_PIN, LOW);
-  //shiftOut( _74HC595_DATA_PIN, _74HC595_CLOCK_PIN, MSBFIRST, lvl );
-  FSO.write(lvl);
-  PORTC |= (1 << PORTC4);
-  //digitalWrite( _74HC595_LATCH_PIN, HIGH);
+  PORTC &= ~(1 << PORTC4);  //digitalWrite( _74HC595_LATCH_PIN, LOW);
+  FSO.write(lvl);           //shiftOut( _74HC595_DATA_PIN, _74HC595_CLOCK_PIN, MSBFIRST, lvl );
+  PORTC |= (1 << PORTC4);   //digitalWrite( _74HC595_LATCH_PIN, HIGH);
 }
 
 void KnightRiderEffect()
