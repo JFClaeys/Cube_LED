@@ -57,11 +57,11 @@ This applies to Arduino Uno and Nano. Maybe other AVR boards, but those are the 
       this is how each led "column" is enumerated
         0    1    2    3
 
-        4    5    6    7
+        7    6    5    4
 
         8    9   10   11
 
-       12   13   14   15  
+       15   14   13   12  
     
     
     */
